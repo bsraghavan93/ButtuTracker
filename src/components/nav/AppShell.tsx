@@ -9,6 +9,7 @@ import { ActiveTimerCard } from "@/components/ui/ActiveTimerCard";
 import { Toast, type ToastState } from "@/components/ui/Toast";
 import { useBaby } from "@/lib/baby-context";
 import { useActiveTimer } from "@/lib/hooks/useActiveTimer";
+import { useBreastSession } from "@/lib/hooks/useBreastSession";
 import { formatAge } from "@/lib/age";
 import { createClient } from "@/lib/supabase/client";
 
@@ -17,6 +18,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastState>(null);
   const { baby } = useBaby();
   const timer = useActiveTimer(baby?.id);
+  const breastSession = useBreastSession(baby?.id);
   const router = useRouter();
 
   async function signOut() {
@@ -39,7 +41,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen pb-[calc(7rem+env(safe-area-inset-bottom))]">
+    <div className="min-h-screen shrink-0 pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-30 mx-auto flex max-w-xl items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
         <div>
           <p className="text-lg font-semibold">
@@ -54,7 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
       </header>
 
-      <ActiveTimerCard timer={timer} />
+      <ActiveTimerCard timer={timer} breastSession={breastSession} />
 
       <main className="mx-auto max-w-xl px-4">{children}</main>
 
@@ -64,6 +66,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         onClose={() => setQuickAddOpen(false)}
         onLogged={() => router.refresh()}
         timer={timer}
+        breastSession={breastSession}
         onQuickLog={handleQuickLog}
       />
       <Toast toast={toast} onDismiss={() => setToast(null)} />

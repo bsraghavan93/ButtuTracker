@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { SleepLog, SleepType, FeedLog, FeedSide } from "@/lib/types";
+import type { SleepLog, SleepType, FeedLog } from "@/lib/types";
 
 export function useActiveTimer(babyId: string | undefined) {
   const [activeSleep, setActiveSleep] = useState<SleepLog | null>(null);
@@ -28,7 +28,7 @@ export function useActiveTimer(babyId: string | undefined) {
         .from("feed_logs")
         .select("*")
         .eq("baby_id", babyId)
-        .in("type", ["breast", "pump"])
+        .eq("type", "pump")
         .is("duration_min", null)
         .order("occurred_at", { ascending: false })
         .limit(1)
@@ -75,13 +75,13 @@ export function useActiveTimer(babyId: string | undefined) {
   );
 
   const startFeed = useCallback(
-    async (type: "breast" | "pump", side?: FeedSide) => {
+    async (type: "pump") => {
       if (!babyId) return;
       const supabase = createClient();
       await supabase.from("feed_logs").insert({
         baby_id: babyId,
         type,
-        side: side ?? null,
+        side: null,
         occurred_at: new Date().toISOString(),
       });
       await refresh();

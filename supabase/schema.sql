@@ -67,6 +67,17 @@ create table if not exists diaper_logs (
   created_at timestamptz not null default now()
 );
 
+-- ============ foods ============
+-- User-added food library entries shown as quick-tap tiles in Quick add > Solid,
+-- alongside a hardcoded set of common first-foods (kept in the app, not this table).
+create table if not exists foods (
+  id uuid primary key default gen_random_uuid(),
+  baby_id uuid not null references babies(id) on delete cascade,
+  name text not null,
+  emoji text default '🍽️',
+  created_at timestamptz not null default now()
+);
+
 -- ============ growth_logs ============
 create table if not exists growth_logs (
   id uuid primary key default gen_random_uuid(),
@@ -86,6 +97,7 @@ alter table feed_logs enable row level security;
 alter table solid_logs enable row level security;
 alter table diaper_logs enable row level security;
 alter table growth_logs enable row level security;
+alter table foods enable row level security;
 
 create policy "babies_owner" on babies
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
@@ -110,9 +122,14 @@ create policy "growth_logs_owner" on growth_logs
   for all using (baby_id in (select id from babies where user_id = auth.uid()))
   with check (baby_id in (select id from babies where user_id = auth.uid()));
 
+create policy "foods_owner" on foods
+  for all using (baby_id in (select id from babies where user_id = auth.uid()))
+  with check (baby_id in (select id from babies where user_id = auth.uid()));
+
 -- ============ Helpful indexes ============
 create index if not exists idx_sleep_logs_baby_time on sleep_logs (baby_id, start_time desc);
 create index if not exists idx_feed_logs_baby_time on feed_logs (baby_id, occurred_at desc);
 create index if not exists idx_solid_logs_baby_date on solid_logs (baby_id, date_introduced desc);
 create index if not exists idx_diaper_logs_baby_time on diaper_logs (baby_id, occurred_at desc);
 create index if not exists idx_growth_logs_baby_date on growth_logs (baby_id, measured_at desc);
+create index if not exists idx_foods_baby on foods (baby_id, created_at desc);

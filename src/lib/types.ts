@@ -67,6 +67,14 @@ export type DiaperLog = {
   created_at: string;
 };
 
+export type Food = {
+  id: string;
+  baby_id: string;
+  name: string;
+  emoji: string | null;
+  created_at: string;
+};
+
 export type GrowthLog = {
   id: string;
   baby_id: string;
