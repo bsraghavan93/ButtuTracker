@@ -16,8 +16,12 @@ const BabyContext = createContext<BabyContextValue>({
   refresh: async () => {},
 });
 
+// This app is for personal/family use only: whoever logs in shares the
+// same single baby record and the same data — there's no per-account
+// ownership. DEFAULT_BABY is only used the very first time, to create
+// that shared record if it doesn't exist yet.
 const DEFAULT_BABY = {
-  name: "Buttu",
+  name: "Aryan",
   dob: "2026-01-10",
   family_culture: "Tamil",
   food_restrictions: ["beef", "pork"],
@@ -42,7 +46,6 @@ export function BabyProvider({ children }: { children: React.ReactNode }) {
     const { data: existing } = await supabase
       .from("babies")
       .select("*")
-      .eq("user_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();

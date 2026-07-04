@@ -1,5 +1,8 @@
 -- Buttu Tracker database schema (Supabase / Postgres)
 -- Run this in the Supabase SQL editor for a fresh project.
+--
+-- This app is for personal/family use only: every authenticated user
+-- shares the same baby record and logs (not scoped per account).
 
 create extension if not exists "pgcrypto";
 
@@ -7,7 +10,7 @@ create extension if not exists "pgcrypto";
 create table if not exists babies (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null default 'Buttu',
+  name text not null default 'Aryan',
   dob date not null default '2026-01-10',
   family_culture text default 'Tamil',
   food_restrictions text[] default array['beef','pork'],
@@ -99,32 +102,49 @@ alter table diaper_logs enable row level security;
 alter table growth_logs enable row level security;
 alter table foods enable row level security;
 
-create policy "babies_owner" on babies
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+-- Any authenticated user can see and modify all data — there is no
+-- per-account ownership. drop+create makes this block safe to re-run
+-- on a project that already has the old per-user policies.
+drop policy if exists "babies_owner" on babies;
+drop policy if exists "babies_shared" on babies;
+create policy "babies_shared" on babies
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "sleep_logs_owner" on sleep_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+drop policy if exists "sleep_logs_owner" on sleep_logs;
+drop policy if exists "sleep_logs_shared" on sleep_logs;
+create policy "sleep_logs_shared" on sleep_logs
+  for all using (auth.uid() is not null and baby_id in (select id from babies))
+  with check (auth.uid() is not null and baby_id in (select id from babies));
 
-create policy "feed_logs_owner" on feed_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+drop policy if exists "feed_logs_owner" on feed_logs;
+drop policy if exists "feed_logs_shared" on feed_logs;
+create policy "feed_logs_shared" on feed_logs
+  for all using (auth.uid() is not null and baby_id in (select id from babies))
+  with check (auth.uid() is not null and baby_id in (select id from babies));
 
-create policy "solid_logs_owner" on solid_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+drop policy if exists "solid_logs_owner" on solid_logs;
+drop policy if exists "solid_logs_shared" on solid_logs;
+create policy "solid_logs_shared" on solid_logs
+  for all using (auth.uid() is not null and baby_id in (select id from babies))
+  with check (auth.uid() is not null and baby_id in (select id from babies));
 
-create policy "diaper_logs_owner" on diaper_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+drop policy if exists "diaper_logs_owner" on diaper_logs;
+drop policy if exists "diaper_logs_shared" on diaper_logs;
+create policy "diaper_logs_shared" on diaper_logs
+  for all using (auth.uid() is not null and baby_id in (select id from babies))
+  with check (auth.uid() is not null and baby_id in (select id from babies));
 
-create policy "growth_logs_owner" on growth_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+drop policy if exists "growth_logs_owner" on growth_logs;
+drop policy if exists "growth_logs_shared" on growth_logs;
+create policy "growth_logs_shared" on growth_logs
+  for all using (auth.uid() is not null and baby_id in (select id from babies))
+  with check (auth.uid() is not null and baby_id in (select id from babies));
 
-create policy "foods_owner" on foods
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+drop policy if exists "foods_owner" on foods;
+drop policy if exists "foods_shared" on foods;
+create policy "foods_shared" on foods
+  for all using (auth.uid() is not null and baby_id in (select id from babies))
+  with check (auth.uid() is not null and baby_id in (select id from babies));
 
 -- ============ Helpful indexes ============
 create index if not exists idx_sleep_logs_baby_time on sleep_logs (baby_id, start_time desc);
@@ -133,3 +153,17 @@ create index if not exists idx_solid_logs_baby_date on solid_logs (baby_id, date
 create index if not exists idx_diaper_logs_baby_time on diaper_logs (baby_id, occurred_at desc);
 create index if not exists idx_growth_logs_baby_date on growth_logs (baby_id, measured_at desc);
 create index if not exists idx_foods_baby on foods (baby_id, created_at desc);
+
+-- ============ One-time cleanup if you already had data ============
+-- If you'd already logged in before this change, you may have one
+-- "Buttu" baby row per account. This renames all of them to Aryan so
+-- whichever one the app picks up (the oldest) has the right name/dob.
+-- Safe to re-run — it only touches rows still named the placeholder.
+update babies set name = 'Aryan', dob = '2026-01-10' where name = 'Buttu';
+
+-- If that left you with more than one baby row (one per account you'd
+-- tested with), the app only ever shows the oldest one going forward,
+-- so the rest are just harmless leftovers. To see if you have extras
+-- and delete them (this also deletes their logs via cascade):
+--   select * from babies order by created_at;
+--   delete from babies where id = '<id-of-the-one-you-do-not-want>';
