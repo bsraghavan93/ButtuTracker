@@ -1,0 +1,10 @@
+{
+  "name": "Buttu Tracker",
+  "short_name": "Buttu Tracker",
+  "description": "Baby sleep, feeding, solids, diaper, and growth tracker with age-aware guidance.",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": []
+}

@@ -1,26 +1,87 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0b1020;
+  --foreground: #f4f6ff;
+  --bt-purple: #a78bfa;
+  --bt-pink: #f472b6;
+  --bt-blue: #60a5fa;
+  --bt-teal: #2dd4bf;
+  --bt-amber: #fbbf24;
+  --bt-red: #fb7185;
+  --glass-bg: rgba(255, 255, 255, 0.08);
+  --glass-border: rgba(255, 255, 255, 0.18);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-bt-purple: var(--bt-purple);
+  --color-bt-pink: var(--bt-pink);
+  --color-bt-blue: var(--bt-blue);
+  --color-bt-teal: var(--bt-teal);
+  --color-bt-amber: var(--bt-amber);
+  --color-bt-red: var(--bt-red);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  height: 100%;
 }
 
 body {
-  background: var(--background);
+  background:
+    radial-gradient(circle at 15% 0%, rgba(167, 139, 250, 0.35), transparent 45%),
+    radial-gradient(circle at 85% 10%, rgba(96, 165, 250, 0.3), transparent 40%),
+    radial-gradient(circle at 50% 100%, rgba(244, 114, 182, 0.25), transparent 50%),
+    var(--background);
+  background-attachment: fixed;
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  min-height: 100vh;
+}
+
+.glass {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+
+.glass-strong {
+  background: rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.35);
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 999px;
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+.animate-floaty {
+  animation: floaty 4s ease-in-out infinite;
+}
+
+input, select, textarea {
+  color: var(--foreground);
+}
+input::placeholder, textarea::placeholder {
+  color: rgba(244, 246, 255, 0.45);
 }
