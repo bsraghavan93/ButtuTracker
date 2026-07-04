@@ -5,13 +5,18 @@ import { useRouter } from "next/navigation";
 import { LogOut } from "lucide-react";
 import { BottomNav } from "@/components/nav/BottomNav";
 import { QuickAddSheet } from "@/components/quick-add/QuickAddSheet";
+import { ActiveTimerCard } from "@/components/ui/ActiveTimerCard";
+import { Toast, type ToastState } from "@/components/ui/Toast";
 import { useBaby } from "@/lib/baby-context";
+import { useActiveTimer } from "@/lib/hooks/useActiveTimer";
 import { formatAge } from "@/lib/age";
 import { createClient } from "@/lib/supabase/client";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [toast, setToast] = useState<ToastState>(null);
   const { baby } = useBaby();
+  const timer = useActiveTimer(baby?.id);
   const router = useRouter();
 
   async function signOut() {
@@ -21,8 +26,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     router.refresh();
   }
 
+  function handleQuickLog(opts: { table: string; id: string; label: string }) {
+    setToast({
+      message: opts.label,
+      onUndo: async () => {
+        const supabase = createClient();
+        await supabase.from(opts.table).delete().eq("id", opts.id);
+        router.refresh();
+      },
+    });
+    setTimeout(() => setToast((cur) => (cur?.message === opts.label ? null : cur)), 5000);
+  }
+
   return (
-    <div className="min-h-screen pb-32">
+    <div className="min-h-screen pb-[calc(7rem+env(safe-area-inset-bottom))]">
       <header className="sticky top-0 z-30 mx-auto flex max-w-xl items-center justify-between px-4 pt-[calc(env(safe-area-inset-top)+1rem)] pb-3">
         <div>
           <p className="text-lg font-semibold">
@@ -37,6 +54,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </button>
       </header>
 
+      <ActiveTimerCard timer={timer} />
+
       <main className="mx-auto max-w-xl px-4">{children}</main>
 
       <BottomNav onQuickAdd={() => setQuickAddOpen(true)} />
@@ -44,7 +63,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         open={quickAddOpen}
         onClose={() => setQuickAddOpen(false)}
         onLogged={() => router.refresh()}
+        timer={timer}
+        onQuickLog={handleQuickLog}
       />
+      <Toast toast={toast} onDismiss={() => setToast(null)} />
     </div>
   );
 }

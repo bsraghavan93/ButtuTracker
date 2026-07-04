@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Moon, Milk, Baby as BabyIcon, Salad } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useBaby } from "@/lib/baby-context";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import type { FeedSide, FeedType, DiaperType, SleepType, Texture, Reaction } from "@/lib/types";
+import type { ActiveTimer } from "@/lib/hooks/useActiveTimer";
+import type { FeedSide, FeedType, DiaperType, FeedLog, Texture, Reaction } from "@/lib/types";
 
 type Tab = "sleep" | "feed" | "diaper" | "solid";
 
@@ -18,17 +19,40 @@ const TABS: { id: Tab; label: string; icon: typeof Moon }[] = [
   { id: "solid", label: "Solid", icon: Salad },
 ];
 
-function nowLocalInput() {
-  const d = new Date();
-  d.setSeconds(0, 0);
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-  return d.toISOString().slice(0, 16);
+function timeLabel(iso: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 }
 
-export function QuickAddSheet({ open, onClose, onLogged }: { open: boolean; onClose: () => void; onLogged: () => void }) {
+export function QuickAddSheet({
+  open,
+  onClose,
+  onLogged,
+  timer,
+  onQuickLog,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onLogged: () => void;
+  timer: ActiveTimer;
+  onQuickLog: (opts: { table: string; id: string; label: string }) => void;
+}) {
   const { baby } = useBaby();
   const [tab, setTab] = useState<Tab>("sleep");
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const html = document.documentElement;
+    const body = document.body;
+    const prevHtmlOverflow = html.style.overflow;
+    const prevBodyOverflow = body.style.overflow;
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      html.style.overflow = prevHtmlOverflow;
+      body.style.overflow = prevBodyOverflow;
+    };
+  }, [open]);
 
   if (!baby) return null;
 
@@ -75,13 +99,13 @@ export function QuickAddSheet({ open, onClose, onLogged }: { open: boolean; onCl
             </div>
 
             {tab === "sleep" && (
-              <SleepForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
+              <SleepForm timer={timer} onDone={() => { onLogged(); onClose(); }} />
             )}
             {tab === "feed" && (
-              <FeedForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
+              <FeedForm babyId={baby.id} timer={timer} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
             )}
             {tab === "diaper" && (
-              <DiaperForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
+              <DiaperForm babyId={baby.id} onQuickLog={onQuickLog} onDone={() => { onLogged(); onClose(); }} />
             )}
             {tab === "solid" && (
               <SolidForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
@@ -104,6 +128,10 @@ function Field({ label, children }: { label: string; children: React.ReactNode }
 
 const inputClass = "glass rounded-xl px-3 py-2 text-sm bg-transparent outline-none focus:ring-2 focus:ring-bt-purple/60";
 
+const startButtonClass =
+  "flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-br from-bt-purple to-bt-pink py-4 text-base font-semibold text-white disabled:opacity-50";
+const altButtonClass = "glass flex items-center justify-center gap-2 rounded-2xl py-4 text-base font-semibold disabled:opacity-50";
+
 function SegButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
@@ -119,74 +147,145 @@ function SegButton({ active, onClick, children }: { active: boolean; onClick: ()
   );
 }
 
-function SleepForm({ babyId, saving, setSaving, onDone }: { babyId: string; saving: boolean; setSaving: (b: boolean) => void; onDone: () => void }) {
-  const [type, setType] = useState<SleepType>("nap");
-  const [start, setStart] = useState(nowLocalInput());
-  const [end, setEnd] = useState("");
+function SleepForm({ timer, onDone }: { timer: ActiveTimer; onDone: () => void }) {
+  const { activeSleep, startSleep, stopSleep } = timer;
   const [wakings, setWakings] = useState(0);
   const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  async function submit() {
-    setSaving(true);
-    const supabase = createClient();
-    await supabase.from("sleep_logs").insert({
-      baby_id: babyId,
-      type,
-      start_time: new Date(start).toISOString(),
-      end_time: end ? new Date(end).toISOString() : null,
-      night_wakings: type === "night" ? wakings : 0,
-      notes: notes || null,
-    });
-    setSaving(false);
+  if (activeSleep) {
+    return (
+      <div className="flex flex-col gap-3">
+        <p className="text-sm text-foreground/70">
+          {activeSleep.type === "nap" ? "Nap" : "Night sleep"} started at {timeLabel(activeSleep.start_time)}
+        </p>
+        {activeSleep.type === "night" && (
+          <Field label="Night wakings">
+            <input type="number" min={0} value={wakings} onChange={(e) => setWakings(Number(e.target.value))} className={inputClass} />
+          </Field>
+        )}
+        <Field label="Notes">
+          <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
+        </Field>
+        <Button
+          variant="danger"
+          disabled={busy}
+          onClick={async () => {
+            setBusy(true);
+            await stopSleep({ notes: notes || undefined, nightWakings: activeSleep.type === "night" ? wakings : undefined });
+            setBusy(false);
+            onDone();
+          }}
+          className="mt-2 w-full"
+        >
+          {busy ? "Stopping…" : "Stop sleep"}
+        </Button>
+      </div>
+    );
+  }
+
+  async function start(type: "nap" | "night") {
+    setBusy(true);
+    await startSleep(type);
+    setBusy(false);
     onDone();
   }
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <SegButton active={type === "nap"} onClick={() => setType("nap")}>Nap</SegButton>
-        <SegButton active={type === "night"} onClick={() => setType("night")}>Night sleep</SegButton>
-      </div>
-      <Field label="Start time">
-        <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className={inputClass} />
-      </Field>
-      <Field label="End time (leave blank if ongoing)">
-        <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className={inputClass} />
-      </Field>
-      {type === "night" && (
-        <Field label="Night wakings">
-          <input type="number" min={0} value={wakings} onChange={(e) => setWakings(Number(e.target.value))} className={inputClass} />
+      <button disabled={busy} onClick={() => start("nap")} className={startButtonClass}>
+        <Moon size={20} /> Start nap
+      </button>
+      <button disabled={busy} onClick={() => start("night")} className={altButtonClass}>
+        <Moon size={20} /> Start night sleep
+      </button>
+    </div>
+  );
+}
+
+function FeedActiveView({
+  feed,
+  stopFeed,
+  onDone,
+  showAmount,
+}: {
+  feed: FeedLog;
+  stopFeed: ActiveTimer["stopFeed"];
+  onDone: () => void;
+  showAmount?: boolean;
+}) {
+  const [notes, setNotes] = useState("");
+  const [amountMl, setAmountMl] = useState(90);
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-sm text-foreground/70">
+        {feed.type === "breast" ? `Feeding${feed.side ? ` · ${feed.side}` : ""}` : "Pumping"} started at {timeLabel(feed.occurred_at)}
+      </p>
+      {showAmount && (
+        <Field label="Amount (ml)">
+          <input type="number" min={0} value={amountMl} onChange={(e) => setAmountMl(Number(e.target.value))} className={inputClass} />
         </Field>
       )}
       <Field label="Notes">
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
       </Field>
-      <Button onClick={submit} disabled={saving} className="mt-2 w-full">
-        {saving ? "Saving…" : "Save sleep log"}
+      <Button
+        variant="danger"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          await stopFeed({ notes: notes || undefined, amountMl: showAmount ? amountMl : undefined });
+          setBusy(false);
+          onDone();
+        }}
+        className="mt-2 w-full"
+      >
+        {busy ? "Stopping…" : "Stop"}
       </Button>
     </div>
   );
 }
 
-function FeedForm({ babyId, saving, setSaving, onDone }: { babyId: string; saving: boolean; setSaving: (b: boolean) => void; onDone: () => void }) {
-  const [type, setType] = useState<FeedType>("breast");
-  const [side, setSide] = useState<FeedSide>("left");
-  const [duration, setDuration] = useState(10);
-  const [amountMl, setAmountMl] = useState(90);
-  const [occurredAt, setOccurredAt] = useState(nowLocalInput());
-  const [notes, setNotes] = useState("");
+const FEED_SIDES: FeedSide[] = ["left", "right", "both"];
 
-  async function submit() {
+function FeedForm({
+  babyId,
+  timer,
+  saving,
+  setSaving,
+  onDone,
+}: {
+  babyId: string;
+  timer: ActiveTimer;
+  saving: boolean;
+  setSaving: (b: boolean) => void;
+  onDone: () => void;
+}) {
+  const [type, setType] = useState<FeedType>("breast");
+  const [bottleAmountMl, setBottleAmountMl] = useState(90);
+  const [busy, setBusy] = useState(false);
+  const { activeFeed, startFeed, stopFeed } = timer;
+
+  async function handleStart(t: "breast" | "pump", side?: FeedSide) {
+    setBusy(true);
+    await startFeed(t, side);
+    setBusy(false);
+    onDone();
+  }
+
+  async function submitBottle() {
     setSaving(true);
     const supabase = createClient();
     await supabase.from("feed_logs").insert({
       baby_id: babyId,
-      type,
-      side: type === "breast" ? side : null,
-      duration_min: type !== "bottle" ? duration : null,
-      amount_ml: type !== "breast" ? amountMl : null,
-      occurred_at: new Date(occurredAt).toISOString(),
-      notes: notes || null,
+      type: "bottle",
+      side: null,
+      duration_min: null,
+      amount_ml: bottleAmountMl,
+      occurred_at: new Date().toISOString(),
+      notes: null,
     });
     setSaving(false);
     onDone();
@@ -200,86 +299,157 @@ function FeedForm({ babyId, saving, setSaving, onDone }: { babyId: string; savin
         <SegButton active={type === "pump"} onClick={() => setType("pump")}>Pump</SegButton>
       </div>
 
-      {type === "breast" && (
-        <>
-          <div className="flex gap-2">
-            <SegButton active={side === "left"} onClick={() => setSide("left")}>Left</SegButton>
-            <SegButton active={side === "right"} onClick={() => setSide("right")}>Right</SegButton>
-            <SegButton active={side === "both"} onClick={() => setSide("both")}>Both</SegButton>
+      {type === "breast" &&
+        (activeFeed?.type === "breast" ? (
+          <FeedActiveView feed={activeFeed} stopFeed={stopFeed} onDone={onDone} />
+        ) : (
+          <div className="flex flex-col gap-2">
+            <p className="text-sm text-foreground/70">Tap a side to start the timer</p>
+            <div className="flex gap-2">
+              {FEED_SIDES.map((s) => (
+                <button
+                  key={s}
+                  disabled={busy}
+                  onClick={() => handleStart("breast", s)}
+                  className="flex-1 rounded-2xl bg-gradient-to-br from-bt-purple to-bt-pink py-4 text-sm font-semibold capitalize text-white disabled:opacity-50"
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
-          <Field label="Duration (min)">
-            <input type="number" min={0} value={duration} onChange={(e) => setDuration(Number(e.target.value))} className={inputClass} />
+        ))}
+
+      {type === "pump" &&
+        (activeFeed?.type === "pump" ? (
+          <FeedActiveView feed={activeFeed} stopFeed={stopFeed} onDone={onDone} showAmount />
+        ) : (
+          <button disabled={busy} onClick={() => handleStart("pump")} className={startButtonClass}>
+            Start pumping
+          </button>
+        ))}
+
+      {type === "bottle" && (
+        <>
+          <Field label="Amount (ml)">
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setBottleAmountMl((m) => Math.max(0, m - 10))} className="glass rounded-xl px-3 py-2 text-sm">
+                −10
+              </button>
+              <input
+                type="number"
+                min={0}
+                value={bottleAmountMl}
+                onChange={(e) => setBottleAmountMl(Number(e.target.value))}
+                className={cn(inputClass, "flex-1 text-center")}
+              />
+              <button type="button" onClick={() => setBottleAmountMl((m) => m + 10)} className="glass rounded-xl px-3 py-2 text-sm">
+                +10
+              </button>
+            </div>
           </Field>
+          <Button onClick={submitBottle} disabled={saving} className="mt-2 w-full">
+            {saving ? "Saving…" : "Log bottle"}
+          </Button>
         </>
       )}
-
-      {(type === "bottle" || type === "pump") && (
-        <Field label="Amount (ml)">
-          <input type="number" min={0} value={amountMl} onChange={(e) => setAmountMl(Number(e.target.value))} className={inputClass} />
-        </Field>
-      )}
-
-      <Field label="Time">
-        <input type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={inputClass} />
-      </Field>
-      <Field label="Notes">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
-      </Field>
-      <Button onClick={submit} disabled={saving} className="mt-2 w-full">
-        {saving ? "Saving…" : "Save feed log"}
-      </Button>
     </div>
   );
 }
 
-function DiaperForm({ babyId, saving, setSaving, onDone }: { babyId: string; saving: boolean; setSaving: (b: boolean) => void; onDone: () => void }) {
-  const [type, setType] = useState<DiaperType>("wet");
+const DIAPER_COLORS = ["yellow", "brown", "green", "black"];
+const DIAPER_TEXTURES = ["soft", "hard/pellet", "watery", "seedy"];
+
+function ChipRow({ options, value, onChange }: { options: string[]; value: string; onChange: (v: string) => void }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map((opt) => (
+        <button
+          key={opt}
+          type="button"
+          onClick={() => onChange(value === opt ? "" : opt)}
+          className={cn(
+            "rounded-full px-3 py-1.5 text-xs capitalize transition-colors",
+            value === opt ? "bg-gradient-to-br from-bt-purple to-bt-pink text-white" : "glass text-foreground/70"
+          )}
+        >
+          {opt}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function DiaperForm({
+  babyId,
+  onQuickLog,
+  onDone,
+}: {
+  babyId: string;
+  onQuickLog: (opts: { table: string; id: string; label: string }) => void;
+  onDone: () => void;
+}) {
+  const [detailType, setDetailType] = useState<DiaperType | null>(null);
   const [color, setColor] = useState("");
   const [texture, setTexture] = useState("");
-  const [occurredAt, setOccurredAt] = useState(nowLocalInput());
-  const [notes, setNotes] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  async function submit() {
-    setSaving(true);
+  async function log(type: DiaperType, opts?: { color?: string; texture?: string }) {
+    setBusy(true);
     const supabase = createClient();
-    await supabase.from("diaper_logs").insert({
-      baby_id: babyId,
-      type,
-      color: color || null,
-      texture: texture || null,
-      occurred_at: new Date(occurredAt).toISOString(),
-      notes: notes || null,
-    });
-    setSaving(false);
+    const { data } = await supabase
+      .from("diaper_logs")
+      .insert({
+        baby_id: babyId,
+        type,
+        color: opts?.color || null,
+        texture: opts?.texture || null,
+        occurred_at: new Date().toISOString(),
+        notes: null,
+      })
+      .select("id")
+      .single();
+    setBusy(false);
+    if (data) {
+      onQuickLog({ table: "diaper_logs", id: data.id, label: `${type === "wet" ? "Wet" : type === "poop" ? "Poop" : "Wet + poop"} diaper logged` });
+    }
     onDone();
   }
 
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <SegButton active={type === "wet"} onClick={() => setType("wet")}>Wet</SegButton>
-        <SegButton active={type === "poop"} onClick={() => setType("poop")}>Poop</SegButton>
-        <SegButton active={type === "both"} onClick={() => setType("both")}>Both</SegButton>
+  if (detailType) {
+    return (
+      <div className="flex flex-col gap-3">
+        <div className="flex gap-2">
+          <SegButton active={detailType === "poop"} onClick={() => setDetailType("poop")}>Poop</SegButton>
+          <SegButton active={detailType === "both"} onClick={() => setDetailType("both")}>Both</SegButton>
+        </div>
+        <Field label="Color (optional)">
+          <ChipRow options={DIAPER_COLORS} value={color} onChange={setColor} />
+        </Field>
+        <Field label="Texture (optional)">
+          <ChipRow options={DIAPER_TEXTURES} value={texture} onChange={setTexture} />
+        </Field>
+        <Button disabled={busy} onClick={() => log(detailType, { color, texture })} className="mt-2 w-full">
+          {busy ? "Saving…" : "Log diaper"}
+        </Button>
+        <button onClick={() => setDetailType(null)} className="text-center text-xs text-foreground/50">
+          Back
+        </button>
       </div>
-      {(type === "poop" || type === "both") && (
-        <>
-          <Field label="Color">
-            <input value={color} onChange={(e) => setColor(e.target.value)} className={inputClass} placeholder="e.g. yellow, brown, green" />
-          </Field>
-          <Field label="Texture">
-            <input value={texture} onChange={(e) => setTexture(e.target.value)} className={inputClass} placeholder="e.g. soft, hard/pellet, watery" />
-          </Field>
-        </>
-      )}
-      <Field label="Time">
-        <input type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={inputClass} />
-      </Field>
-      <Field label="Notes">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
-      </Field>
-      <Button onClick={submit} disabled={saving} className="mt-2 w-full">
-        {saving ? "Saving…" : "Save diaper log"}
-      </Button>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-2">
+      <button disabled={busy} onClick={() => log("wet")} className={startButtonClass}>
+        Wet
+      </button>
+      <button disabled={busy} onClick={() => setDetailType("poop")} className={altButtonClass}>
+        Poop
+      </button>
+      <button disabled={busy} onClick={() => setDetailType("both")} className={altButtonClass}>
+        Wet + poop
+      </button>
     </div>
   );
 }
