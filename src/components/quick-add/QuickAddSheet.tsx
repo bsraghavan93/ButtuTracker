@@ -44,7 +44,7 @@ export function QuickAddSheet({ open, onClose, onLogged }: { open: boolean; onCl
             onClick={onClose}
           />
           <motion.div
-            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl glass-strong p-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
+            className="fixed inset-x-0 bottom-0 z-50 max-h-[85vh] overflow-y-auto rounded-t-3xl glass-sheet p-5 pb-[calc(env(safe-area-inset-bottom)+1.5rem)]"
             initial={{ y: "100%" }}
             animate={{ y: 0 }}
             exit={{ y: "100%" }}
