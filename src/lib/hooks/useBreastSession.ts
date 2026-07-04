@@ -11,51 +11,81 @@ type BreastSessionState = {
   rightMs: number;
   leftRunningSince: number | null;
   rightRunningSince: number | null;
+  lastTouchedSide: BreastSide | null;
 };
 
-function storageKey(babyId: string) {
+function sessionKey(babyId: string) {
   return `buttu:breast-session:${babyId}`;
+}
+
+function lastSideKey(babyId: string) {
+  return `buttu:breast-last-side:${babyId}`;
 }
 
 function load(babyId: string): BreastSessionState | null {
   try {
-    const raw = localStorage.getItem(storageKey(babyId));
+    const raw = localStorage.getItem(sessionKey(babyId));
     return raw ? (JSON.parse(raw) as BreastSessionState) : null;
   } catch {
     return null;
   }
 }
 
+function loadLastSide(babyId: string): BreastSide | null {
+  const raw = localStorage.getItem(lastSideKey(babyId));
+  return raw === "left" || raw === "right" ? raw : null;
+}
+
 export function useBreastSession(babyId: string | undefined) {
   const [session, setSession] = useState<BreastSessionState | null>(null);
+  const [lastSide, setLastSide] = useState<BreastSide | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing from localStorage on mount/babyId change
     setSession(babyId ? load(babyId) : null);
+    setLastSide(babyId ? loadLastSide(babyId) : null);
   }, [babyId]);
 
   const persist = useCallback(
     (next: BreastSessionState | null) => {
       setSession(next);
       if (!babyId) return;
-      if (next) localStorage.setItem(storageKey(babyId), JSON.stringify(next));
-      else localStorage.removeItem(storageKey(babyId));
+      if (next) localStorage.setItem(sessionKey(babyId), JSON.stringify(next));
+      else localStorage.removeItem(sessionKey(babyId));
     },
     [babyId]
   );
 
   const toggleSide = useCallback(
     (side: BreastSide) => {
+      const other: BreastSide = side === "left" ? "right" : "left";
       const current: BreastSessionState =
-        session ?? { startedAt: Date.now(), leftMs: 0, rightMs: 0, leftRunningSince: null, rightRunningSince: null };
+        session ?? {
+          startedAt: Date.now(),
+          leftMs: 0,
+          rightMs: 0,
+          leftRunningSince: null,
+          rightRunningSince: null,
+          lastTouchedSide: null,
+        };
       const runningKey = side === "left" ? "leftRunningSince" : "rightRunningSince";
       const msKey = side === "left" ? "leftMs" : "rightMs";
+      const otherRunningKey = other === "left" ? "leftRunningSince" : "rightRunningSince";
+      const otherMsKey = other === "left" ? "leftMs" : "rightMs";
       const runningSince = current[runningKey];
+
       if (runningSince) {
         persist({ ...current, [msKey]: current[msKey] + (Date.now() - runningSince), [runningKey]: null });
-      } else {
-        persist({ ...current, [runningKey]: Date.now() });
+        return;
       }
+
+      const next = { ...current, [runningKey]: Date.now(), lastTouchedSide: side };
+      const otherRunningSince = current[otherRunningKey];
+      if (otherRunningSince) {
+        next[otherMsKey] = current[otherMsKey] + (Date.now() - otherRunningSince);
+        next[otherRunningKey] = null;
+      }
+      persist(next);
     },
     [session, persist]
   );
@@ -113,12 +143,16 @@ export function useBreastSession(babyId: string | undefined) {
         });
       }
       if (rows.length) await supabase.from("feed_logs").insert(rows);
+      if (session.lastTouchedSide) {
+        localStorage.setItem(lastSideKey(babyId), session.lastTouchedSide);
+        setLastSide(session.lastTouchedSide);
+      }
       discard();
     },
     [session, babyId, discard, elapsedMs]
   );
 
-  return { session, toggleSide, setSideMinutes, elapsedMs, discard, save, hasSession: !!session };
+  return { session, lastSide, toggleSide, setSideMinutes, elapsedMs, discard, save, hasSession: !!session };
 }
 
 export type BreastSessionHook = ReturnType<typeof useBreastSession>;

@@ -292,8 +292,15 @@ function BreastCircle({
   );
 }
 
+function durationLabel(ms: number) {
+  const totalSeconds = Math.floor(ms / 1000);
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 function BreastTimerPanel({ breastSession, onDone }: { breastSession: BreastSessionHook; onDone: () => void }) {
-  const { session, toggleSide, setSideMinutes, elapsedMs, discard, save } = breastSession;
+  const { session, lastSide, toggleSide, setSideMinutes, elapsedMs, discard, save } = breastSession;
   const [, setTick] = useState(0);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
@@ -332,11 +339,17 @@ function BreastTimerPanel({ breastSession, onDone }: { breastSession: BreastSess
 
   return (
     <div className="flex flex-col items-center gap-4">
+      {!session && lastSide && (
+        <p className="text-xs text-foreground/50">Last fed: {lastSide === "left" ? "Left" : "Right"} side</p>
+      )}
       <p className="text-sm text-foreground/70">Tap a side to start or pause</p>
       <div className="flex gap-6">
         {renderSide("left", "Left", leftMs, leftRunning)}
         {renderSide("right", "Right", rightMs, rightRunning)}
       </div>
+      <p className="text-sm text-foreground/70">
+        Total <span className="font-mono tabular-nums text-foreground">{durationLabel(leftMs + rightMs)}</span>
+      </p>
       <div className="w-full">
         <Field label="Notes">
           <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
