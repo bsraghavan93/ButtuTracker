@@ -9,8 +9,6 @@ import { ageInMonths } from "@/lib/age";
 import { suggestNextFoods } from "@/lib/foods";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { LogRow } from "@/components/ui/LogRow";
-import { GuidanceList } from "@/components/ui/GuidanceList";
-import { solidsGuidance } from "@/lib/guidance/engine";
 
 export default function SolidsPage() {
   const { baby } = useBaby();
@@ -18,11 +16,6 @@ export default function SolidsPage() {
 
   const ageMonths = baby ? ageInMonths(baby.dob) : 0;
   const restrictions = useMemo(() => baby?.food_restrictions ?? [], [baby]);
-
-  const guidance = useMemo(
-    () => (baby ? solidsGuidance(ageMonths, solidLogs, restrictions) : []),
-    [baby, ageMonths, solidLogs, restrictions]
-  );
 
   const nextFoods = useMemo(() => {
     if (!baby) return [];
@@ -40,8 +33,6 @@ export default function SolidsPage() {
   return (
     <div className="flex flex-col gap-5 pt-2">
       <h1 className="text-xl font-semibold">Solids</h1>
-
-      <GuidanceList items={guidance} />
 
       {nextFoods.length > 0 && (
         <div>

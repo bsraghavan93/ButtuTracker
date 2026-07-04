@@ -5,21 +5,13 @@ import { format, subDays } from "date-fns";
 import { useBaby } from "@/lib/baby-context";
 import { useLogs } from "@/lib/hooks/useLogs";
 import { createClient } from "@/lib/supabase/client";
-import { ageInMonths } from "@/lib/age";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { LogRow } from "@/components/ui/LogRow";
-import { GuidanceList } from "@/components/ui/GuidanceList";
 import { BarTrendChart, type TrendPoint } from "@/components/charts/TrendChart";
-import { feedingGuidance } from "@/lib/guidance/engine";
 
 export default function FeedingPage() {
   const { baby } = useBaby();
   const { feedLogs, loading, refresh } = useLogs(baby?.id, 14);
-
-  const guidance = useMemo(
-    () => (baby ? feedingGuidance(feedLogs, ageInMonths(baby.dob)) : []),
-    [baby, feedLogs]
-  );
 
   const trend: TrendPoint[] = useMemo(() => {
     const days = Array.from({ length: 7 }).map((_, i) => subDays(new Date(), 6 - i));
@@ -51,8 +43,6 @@ export default function FeedingPage() {
           <BarTrendChart data={trend} color="#f472b6" />
         </GlassCard>
       </div>
-
-      <GuidanceList items={guidance} emptyLabel="No feeding guidance right now." />
 
       <div>
         <p className="mb-2 text-sm font-medium text-foreground/70">Recent logs</p>

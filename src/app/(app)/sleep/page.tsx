@@ -1,27 +1,18 @@
 "use client";
 
 import { useMemo } from "react";
-import { format, subDays, differenceInMinutes } from "date-fns";
+import { format, subDays } from "date-fns";
 import { useBaby } from "@/lib/baby-context";
 import { useLogs } from "@/lib/hooks/useLogs";
 import { createClient } from "@/lib/supabase/client";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { LogRow } from "@/components/ui/LogRow";
-import { GuidanceList } from "@/components/ui/GuidanceList";
 import { AreaTrendChart, type TrendPoint } from "@/components/charts/TrendChart";
-import { sleepGuidance } from "@/lib/guidance/engine";
-import { formatMinutes } from "@/lib/utils";
-
-function sleepMinutes(start: string, end: string | null) {
-  if (!end) return 0;
-  return Math.max(0, differenceInMinutes(new Date(end), new Date(start)));
-}
+import { formatMinutes, sleepMinutes } from "@/lib/utils";
 
 export default function SleepPage() {
   const { baby } = useBaby();
   const { sleepLogs, loading, refresh } = useLogs(baby?.id, 14);
-
-  const guidance = useMemo(() => (baby ? sleepGuidance(baby.dob, sleepLogs) : []), [baby, sleepLogs]);
 
   const trend: TrendPoint[] = useMemo(() => {
     const days = Array.from({ length: 7 }).map((_, i) => subDays(new Date(), 6 - i));
@@ -55,8 +46,6 @@ export default function SleepPage() {
           <AreaTrendChart data={trend} color="#a78bfa" valueSuffix="h" />
         </GlassCard>
       </div>
-
-      <GuidanceList items={guidance} emptyLabel="No sleep guidance right now." />
 
       <div>
         <p className="mb-2 text-sm font-medium text-foreground/70">Recent logs</p>

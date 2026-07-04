@@ -2,6 +2,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { GlassCard } from "@/components/ui/GlassCard";
+import { cn } from "@/lib/utils";
 
 type Accent = "bt-purple" | "bt-pink" | "bt-blue" | "bt-teal" | "bt-amber" | "bt-red";
 
@@ -20,16 +21,22 @@ export function StatCard({
   value,
   sub,
   accent = "bt-purple",
+  onClick,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
   sub?: string;
   accent?: Accent;
+  onClick?: () => void;
 }) {
   const classes = ACCENT_CLASSES[accent];
   return (
-    <GlassCard className="flex flex-col gap-2 p-4">
+    <GlassCard
+      className={cn("flex flex-col gap-2 p-4 text-left", onClick && "cursor-pointer")}
+      onClick={onClick}
+      whileTap={onClick ? { scale: 0.97 } : undefined}
+    >
       <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${classes.bg}`}>
         <Icon size={18} className={classes.text} />
       </div>

@@ -8,10 +8,10 @@ import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: Home },
-  { href: "/sleep", label: "Sleep", icon: Moon },
+  { href: "/diapers", label: "Diapers", icon: Baby },
   { href: "/feeding", label: "Feed", icon: Milk },
   { href: "/solids", label: "Solids", icon: Salad },
-  { href: "/diapers", label: "Diapers", icon: Baby },
+  { href: "/sleep", label: "Sleep", icon: Moon },
   { href: "/growth", label: "Growth", icon: TrendingUp },
 ];
 
@@ -21,7 +21,7 @@ export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40 pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto max-w-xl px-3 pb-3">
-        <div className="glass-strong relative flex items-center justify-between rounded-3xl px-2 py-2">
+        <div className="glass-nav relative flex items-center justify-between rounded-3xl px-2 py-2">
           {NAV_ITEMS.slice(0, 3).map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}

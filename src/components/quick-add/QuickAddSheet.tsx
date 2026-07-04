@@ -12,13 +12,13 @@ import type { BreastSessionHook, BreastSide } from "@/lib/hooks/useBreastSession
 import { useFoods } from "@/lib/hooks/useFoods";
 import type { FeedType, DiaperType, FeedLog, Texture, Reaction } from "@/lib/types";
 
-type Tab = "sleep" | "feed" | "diaper" | "solid";
+export type Tab = "sleep" | "feed" | "diaper" | "solid";
 
 const TABS: { id: Tab; label: string; icon: typeof Moon }[] = [
-  { id: "sleep", label: "Sleep", icon: Moon },
-  { id: "feed", label: "Feed", icon: Milk },
   { id: "diaper", label: "Diaper", icon: BabyIcon },
+  { id: "feed", label: "Feed", icon: Milk },
   { id: "solid", label: "Solid", icon: Salad },
+  { id: "sleep", label: "Sleep", icon: Moon },
 ];
 
 function timeLabel(iso: string) {
@@ -32,6 +32,7 @@ export function QuickAddSheet({
   timer,
   breastSession,
   onQuickLog,
+  initialTab,
 }: {
   open: boolean;
   onClose: () => void;
@@ -39,13 +40,18 @@ export function QuickAddSheet({
   timer: ActiveTimer;
   breastSession: BreastSessionHook;
   onQuickLog: (opts: { table: string; id: string; label: string }) => void;
+  initialTab?: Tab;
 }) {
   const { baby } = useBaby();
-  const [tab, setTab] = useState<Tab>("sleep");
+  const [tab, setTab] = useState<Tab>("diaper");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (!open) return;
+    if (initialTab) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting the active tab when the sheet is opened for a specific action
+      setTab(initialTab);
+    }
     const html = document.documentElement;
     const body = document.body;
     const prevHtmlOverflow = html.style.overflow;
@@ -56,6 +62,7 @@ export function QuickAddSheet({
       html.style.overflow = prevHtmlOverflow;
       body.style.overflow = prevBodyOverflow;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- initialTab is read only at the moment the sheet opens
   }, [open]);
 
   if (!baby) return null;
