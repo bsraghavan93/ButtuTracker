@@ -2,22 +2,20 @@
 
 import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Moon, Milk, Baby as BabyIcon, Salad, Toilet, Pill } from "lucide-react";
+import { X, Moon, Milk, Baby as BabyIcon, Salad } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { useBaby } from "@/lib/baby-context";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
-import type { FeedSide, FeedType, DiaperType, SleepType, Texture, Reaction, PottyType } from "@/lib/types";
+import type { FeedSide, FeedType, DiaperType, SleepType, Texture, Reaction } from "@/lib/types";
 
-type Tab = "sleep" | "feed" | "diaper" | "solid" | "potty" | "medicine";
+type Tab = "sleep" | "feed" | "diaper" | "solid";
 
 const TABS: { id: Tab; label: string; icon: typeof Moon }[] = [
   { id: "sleep", label: "Sleep", icon: Moon },
   { id: "feed", label: "Feed", icon: Milk },
   { id: "diaper", label: "Diaper", icon: BabyIcon },
   { id: "solid", label: "Solid", icon: Salad },
-  { id: "potty", label: "Potty", icon: Toilet },
-  { id: "medicine", label: "Medicine", icon: Pill },
 ];
 
 function nowLocalInput() {
@@ -60,7 +58,7 @@ export function QuickAddSheet({ open, onClose, onLogged }: { open: boolean; onCl
               </button>
             </div>
 
-            <div className="mb-5 grid grid-cols-3 gap-2">
+            <div className="mb-5 grid grid-cols-4 gap-2">
               {TABS.map((t) => (
                 <button
                   key={t.id}
@@ -87,12 +85,6 @@ export function QuickAddSheet({ open, onClose, onLogged }: { open: boolean; onCl
             )}
             {tab === "solid" && (
               <SolidForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
-            )}
-            {tab === "potty" && (
-              <PottyForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
-            )}
-            {tab === "medicine" && (
-              <MedicineForm babyId={baby.id} saving={saving} setSaving={setSaving} onDone={() => { onLogged(); onClose(); }} />
             )}
           </motion.div>
         </>
@@ -350,102 +342,6 @@ function SolidForm({ babyId, saving, setSaving, onDone }: { babyId: string; savi
       </Field>
       <Button onClick={submit} disabled={saving} className="mt-2 w-full">
         {saving ? "Saving…" : "Save solid food log"}
-      </Button>
-    </div>
-  );
-}
-
-function PottyForm({ babyId, saving, setSaving, onDone }: { babyId: string; saving: boolean; setSaving: (b: boolean) => void; onDone: () => void }) {
-  const [type, setType] = useState<PottyType>("pee");
-  const [occurredAt, setOccurredAt] = useState(nowLocalInput());
-  const [notes, setNotes] = useState("");
-
-  async function submit() {
-    setSaving(true);
-    const supabase = createClient();
-    await supabase.from("potty_logs").insert({
-      baby_id: babyId,
-      type,
-      occurred_at: new Date(occurredAt).toISOString(),
-      notes: notes || null,
-    });
-    setSaving(false);
-    onDone();
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <div className="flex gap-2">
-        <SegButton active={type === "pee"} onClick={() => setType("pee")}>Pee</SegButton>
-        <SegButton active={type === "poop"} onClick={() => setType("poop")}>Poop</SegButton>
-        <SegButton active={type === "both"} onClick={() => setType("both")}>Both</SegButton>
-      </div>
-      <Field label="Time">
-        <input type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={inputClass} />
-      </Field>
-      <Field label="Notes">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
-      </Field>
-      <Button onClick={submit} disabled={saving} className="mt-2 w-full">
-        {saving ? "Saving…" : "Save potty log"}
-      </Button>
-    </div>
-  );
-}
-
-function MedicineForm({ babyId, saving, setSaving, onDone }: { babyId: string; saving: boolean; setSaving: (b: boolean) => void; onDone: () => void }) {
-  const [medicineName, setMedicineName] = useState("");
-  const [doseAmount, setDoseAmount] = useState("");
-  const [doseUnit, setDoseUnit] = useState("ml");
-  const [occurredAt, setOccurredAt] = useState(nowLocalInput());
-  const [notes, setNotes] = useState("");
-
-  async function submit() {
-    if (!medicineName.trim()) return;
-    setSaving(true);
-    const supabase = createClient();
-    await supabase.from("medicine_logs").insert({
-      baby_id: babyId,
-      medicine_name: medicineName.trim(),
-      dose_amount: doseAmount ? Number(doseAmount) : null,
-      dose_unit: doseUnit || null,
-      occurred_at: new Date(occurredAt).toISOString(),
-      notes: notes || null,
-    });
-    setSaving(false);
-    onDone();
-  }
-
-  return (
-    <div className="flex flex-col gap-3">
-      <Field label="Medicine name">
-        <input value={medicineName} onChange={(e) => setMedicineName(e.target.value)} className={inputClass} placeholder="e.g. Gas Drops" />
-      </Field>
-      <div className="flex gap-2">
-        <div className="flex-1">
-          <Field label="Dose amount">
-            <input type="number" min={0} step="0.1" value={doseAmount} onChange={(e) => setDoseAmount(e.target.value)} className={inputClass} />
-          </Field>
-        </div>
-        <div className="flex-1">
-          <Field label="Unit">
-            <select value={doseUnit} onChange={(e) => setDoseUnit(e.target.value)} className={inputClass}>
-              <option value="ml">ml</option>
-              <option value="mg">mg</option>
-              <option value="drops">drops</option>
-              <option value="tsp">tsp</option>
-            </select>
-          </Field>
-        </div>
-      </div>
-      <Field label="Time">
-        <input type="datetime-local" value={occurredAt} onChange={(e) => setOccurredAt(e.target.value)} className={inputClass} />
-      </Field>
-      <Field label="Notes">
-        <textarea value={notes} onChange={(e) => setNotes(e.target.value)} className={inputClass} rows={2} placeholder="Optional" />
-      </Field>
-      <Button onClick={submit} disabled={saving} className="mt-2 w-full">
-        {saving ? "Saving…" : "Save medicine log"}
       </Button>
     </div>
   );

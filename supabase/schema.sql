@@ -79,28 +79,6 @@ create table if not exists growth_logs (
   created_at timestamptz not null default now()
 );
 
--- ============ potty_logs ============
-create table if not exists potty_logs (
-  id uuid primary key default gen_random_uuid(),
-  baby_id uuid not null references babies(id) on delete cascade,
-  type text not null check (type in ('pee', 'poop', 'both')),
-  notes text,
-  occurred_at timestamptz not null default now(),
-  created_at timestamptz not null default now()
-);
-
--- ============ medicine_logs ============
-create table if not exists medicine_logs (
-  id uuid primary key default gen_random_uuid(),
-  baby_id uuid not null references babies(id) on delete cascade,
-  medicine_name text not null,
-  dose_amount numeric,
-  dose_unit text,
-  notes text,
-  occurred_at timestamptz not null default now(),
-  created_at timestamptz not null default now()
-);
-
 -- ============ Row Level Security ============
 -- There is a single shared baby for the whole family, so every signed-in
 -- user (not just the row's original creator) can read and write all data.
@@ -111,8 +89,6 @@ alter table feed_logs enable row level security;
 alter table solid_logs enable row level security;
 alter table diaper_logs enable row level security;
 alter table growth_logs enable row level security;
-alter table potty_logs enable row level security;
-alter table medicine_logs enable row level security;
 
 create policy "babies_shared" on babies
   for all using (auth.uid() is not null) with check (auth.uid() is not null);
@@ -132,17 +108,9 @@ create policy "diaper_logs_shared" on diaper_logs
 create policy "growth_logs_shared" on growth_logs
   for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "potty_logs_shared" on potty_logs
-  for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
-create policy "medicine_logs_shared" on medicine_logs
-  for all using (auth.uid() is not null) with check (auth.uid() is not null);
-
 -- ============ Helpful indexes ============
 create index if not exists idx_sleep_logs_baby_time on sleep_logs (baby_id, start_time desc);
 create index if not exists idx_feed_logs_baby_time on feed_logs (baby_id, occurred_at desc);
 create index if not exists idx_solid_logs_baby_date on solid_logs (baby_id, date_introduced desc);
 create index if not exists idx_diaper_logs_baby_time on diaper_logs (baby_id, occurred_at desc);
 create index if not exists idx_growth_logs_baby_date on growth_logs (baby_id, measured_at desc);
-create index if not exists idx_potty_logs_baby_time on potty_logs (baby_id, occurred_at desc);
-create index if not exists idx_medicine_logs_baby_time on medicine_logs (baby_id, occurred_at desc);
