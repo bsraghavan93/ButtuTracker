@@ -77,3 +77,25 @@ export type GrowthLog = {
   measured_at: string;
   created_at: string;
 };
+
+export type PottyType = "pee" | "poop" | "both";
+
+export type PottyLog = {
+  id: string;
+  baby_id: string;
+  type: PottyType;
+  notes: string | null;
+  occurred_at: string;
+  created_at: string;
+};
+
+export type MedicineLog = {
+  id: string;
+  baby_id: string;
+  medicine_name: string;
+  dose_amount: number | null;
+  dose_unit: string | null;
+  notes: string | null;
+  occurred_at: string;
+  created_at: string;
+};
