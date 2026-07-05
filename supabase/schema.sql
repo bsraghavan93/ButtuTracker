@@ -7,7 +7,7 @@ create extension if not exists "pgcrypto";
 create table if not exists babies (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null default 'Buttu',
+  name text not null default 'Aryan',
   dob date not null default '2026-01-10',
   family_culture text default 'Tamil',
   food_restrictions text[] default array['beef','pork'],
@@ -80,6 +80,9 @@ create table if not exists growth_logs (
 );
 
 -- ============ Row Level Security ============
+-- There is a single shared baby for the whole family, so every signed-in
+-- user (not just the row's original creator) can read and write all data.
+-- `babies.user_id` is kept only to record who first created the row.
 alter table babies enable row level security;
 alter table sleep_logs enable row level security;
 alter table feed_logs enable row level security;
@@ -87,28 +90,23 @@ alter table solid_logs enable row level security;
 alter table diaper_logs enable row level security;
 alter table growth_logs enable row level security;
 
-create policy "babies_owner" on babies
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "babies_shared" on babies
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "sleep_logs_owner" on sleep_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "sleep_logs_shared" on sleep_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "feed_logs_owner" on feed_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "feed_logs_shared" on feed_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "solid_logs_owner" on solid_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "solid_logs_shared" on solid_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "diaper_logs_owner" on diaper_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "diaper_logs_shared" on diaper_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "growth_logs_owner" on growth_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "growth_logs_shared" on growth_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 -- ============ Helpful indexes ============
 create index if not exists idx_sleep_logs_baby_time on sleep_logs (baby_id, start_time desc);
