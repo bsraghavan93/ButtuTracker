@@ -2,16 +2,19 @@
 
 import { useMemo } from "react";
 import { format, subDays, differenceInMinutes } from "date-fns";
-import { Moon, Milk, Salad, Baby as BabyIcon, AlarmClock, Sparkles, FileDown, FileSpreadsheet } from "lucide-react";
+import { Moon, Milk, Salad, Baby as BabyIcon, AlarmClock, Sparkles, FileDown, FileSpreadsheet, Droplet, Toilet, Syringe, Pill, TrendingUp } from "lucide-react";
 import { useBaby } from "@/lib/baby-context";
 import { useLogs } from "@/lib/hooks/useLogs";
+import { useLatestLogs } from "@/lib/hooks/useLatestLogs";
+import { useElapsedClock } from "@/lib/hooks/useElapsedClock";
 import { StatCard } from "@/components/ui/StatCard";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
 import { GuidanceList } from "@/components/ui/GuidanceList";
+import { ActivityCard } from "@/components/ui/ActivityCard";
 import { AreaTrendChart, BarTrendChart, type TrendPoint } from "@/components/charts/TrendChart";
 import { computeAllGuidance, dailyHeadline } from "@/lib/guidance/engine";
-import { formatMinutes } from "@/lib/utils";
+import { formatMinutes, agoLabel, lbToLbOz } from "@/lib/utils";
 import { exportSummaryToExcel, exportSummaryToPdf } from "@/lib/export";
 
 function sleepMinutes(start: string, end: string | null) {
@@ -22,6 +25,11 @@ function sleepMinutes(start: string, end: string | null) {
 export default function DashboardPage() {
   const { baby, loading: babyLoading } = useBaby();
   const { sleepLogs, feedLogs, solidLogs, diaperLogs, growthLogs, loading } = useLogs(baby?.id, 14);
+  const latest = useLatestLogs(baby?.id);
+
+  const sleeping = !!latest.sleep && !latest.sleep.end_time;
+  const wakeClockSince = sleeping ? latest.sleep?.start_time : latest.sleep?.end_time;
+  const wakeClock = useElapsedClock(wakeClockSince);
 
   const guidance = useMemo(() => {
     if (!baby) return [];
@@ -36,20 +44,6 @@ export default function DashboardPage() {
   }, [baby, sleepLogs, feedLogs, solidLogs, diaperLogs]);
 
   const headline = baby ? dailyHeadline(guidance, baby.name) : "";
-
-  const today = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return d;
-  }, []);
-
-  const todaysSleep = sleepLogs.filter((s) => new Date(s.start_time) >= today);
-  const todaysFeeds = feedLogs.filter((f) => new Date(f.occurred_at) >= today);
-  const todaysSolids = solidLogs.filter((s) => new Date(s.date_introduced) >= today);
-  const todaysDiapers = diaperLogs.filter((d) => new Date(d.occurred_at) >= today);
-
-  const totalSleepMin = todaysSleep.reduce((sum, s) => sum + sleepMinutes(s.start_time, s.end_time), 0);
-  const napCount = todaysSleep.filter((s) => s.type === "nap").length;
 
   const longestWakeWindow = useMemo(() => {
     const sorted = [...sleepLogs]
@@ -92,7 +86,7 @@ export default function DashboardPage() {
   }, [feedLogs]);
 
   if (babyLoading || !baby) {
-    return <div className="pt-10 text-center text-foreground/60">Loading Buttu&apos;s data…</div>;
+    return <div className="pt-10 text-center text-foreground/60">Loading tracker data…</div>;
   }
 
   return (
@@ -105,12 +99,105 @@ export default function DashboardPage() {
         </div>
       </GlassCard>
 
+      <div className="flex flex-col gap-3">
+        <ActivityCard
+          icon={Moon}
+          title="Sleep"
+          subtitle={
+            latest.sleep
+              ? `${agoLabel(latest.sleep.start_time)} • ${latest.sleep.end_time ? formatMinutes(sleepMinutes(latest.sleep.start_time, latest.sleep.end_time)) : "ongoing"}`
+              : "No entries yet"
+          }
+          badge={wakeClock || undefined}
+          accent="bt-blue"
+          href="/sleep"
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <ActivityCard
+            icon={Droplet}
+            title="Nursing"
+            subtitle={
+              latest.nursing
+                ? `${agoLabel(latest.nursing.occurred_at)} • ${latest.nursing.side ?? ""} ${latest.nursing.duration_min ? `${latest.nursing.duration_min}m` : ""}`.trim()
+                : "No entries yet"
+            }
+            accent="bt-amber"
+            href="/feeding"
+            compact
+          />
+          <ActivityCard
+            icon={Milk}
+            title="Bottle"
+            subtitle={latest.bottle ? `${agoLabel(latest.bottle.occurred_at)} • ${latest.bottle.amount_ml ?? "—"}ml` : "No entries yet"}
+            accent="bt-pink"
+            href="/feeding"
+            compact
+          />
+        </div>
+
+        <ActivityCard
+          icon={Salad}
+          title="Solids"
+          subtitle={latest.solid ? `${agoLabel(latest.solid.date_introduced)} • ${latest.solid.food_name}` : "No entries yet"}
+          accent="bt-pink"
+          href="/solids"
+        />
+
+        <div className="grid grid-cols-2 gap-3">
+          <ActivityCard
+            icon={BabyIcon}
+            title="Diaper"
+            subtitle={latest.diaper ? `${agoLabel(latest.diaper.occurred_at)} • ${latest.diaper.type}` : "No entries yet"}
+            accent="bt-amber"
+            href="/diapers"
+            compact
+          />
+          <ActivityCard
+            icon={Toilet}
+            title="Potty"
+            subtitle={latest.potty ? `${agoLabel(latest.potty.occurred_at)} • ${latest.potty.type}` : "No entries yet"}
+            accent="bt-teal"
+            href="/potty"
+            compact
+          />
+        </div>
+
+        <ActivityCard
+          icon={Syringe}
+          title="Pumping"
+          subtitle={latest.pumping ? `${agoLabel(latest.pumping.occurred_at)} • ${latest.pumping.amount_ml ?? "—"}ml` : "No entries yet"}
+          accent="bt-purple"
+          href="/feeding"
+        />
+
+        <ActivityCard
+          icon={Pill}
+          title="Medicine"
+          subtitle={
+            latest.medicine
+              ? `${agoLabel(latest.medicine.occurred_at)} • ${latest.medicine.dose_amount ?? ""}${latest.medicine.dose_unit ?? ""} ${latest.medicine.medicine_name}`.trim()
+              : "No entries yet"
+          }
+          accent="bt-teal"
+          href="/medicine"
+        />
+
+        <ActivityCard
+          icon={TrendingUp}
+          title="Growth"
+          subtitle={
+            latest.growth
+              ? `${agoLabel(latest.growth.measured_at)} • ${[latest.growth.length_in ? `${latest.growth.length_in}in` : null, latest.growth.weight_lb ? lbToLbOz(latest.growth.weight_lb) : null].filter(Boolean).join(" • ")}`
+              : "No entries yet"
+          }
+          accent="bt-green"
+          href="/growth"
+        />
+      </div>
+
       <div className="grid grid-cols-2 gap-3">
-        <StatCard icon={Moon} label="Total sleep today" value={formatMinutes(totalSleepMin)} sub={`${napCount} nap${napCount === 1 ? "" : "s"}`} accent="bt-purple" />
         <StatCard icon={AlarmClock} label="Longest wake window" value={longestWakeWindow ? formatMinutes(longestWakeWindow) : "—"} accent="bt-blue" />
-        <StatCard icon={Milk} label="Milk feeds today" value={String(todaysFeeds.length)} accent="bt-pink" />
-        <StatCard icon={Salad} label="Solids today" value={String(todaysSolids.length)} accent="bt-teal" />
-        <StatCard icon={BabyIcon} label="Diapers today" value={String(todaysDiapers.length)} accent="bt-amber" />
         <StatCard icon={Sparkles} label="Symptoms flagged" value={String(symptomCount)} sub="from solids reactions" accent="bt-red" />
       </div>
 

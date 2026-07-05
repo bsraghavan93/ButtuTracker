@@ -17,7 +17,7 @@ const BabyContext = createContext<BabyContextValue>({
 });
 
 const DEFAULT_BABY = {
-  name: "Buttu",
+  name: "Aryan",
   dob: "2026-01-10",
   family_culture: "Tamil",
   food_restrictions: ["beef", "pork"],
@@ -39,10 +39,11 @@ export function BabyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // There is a single shared baby for the whole family, so every signed-in
+    // user resolves to the same row regardless of who originally created it.
     const { data: existing } = await supabase
       .from("babies")
       .select("*")
-      .eq("user_id", user.id)
       .order("created_at", { ascending: true })
       .limit(1)
       .maybeSingle();

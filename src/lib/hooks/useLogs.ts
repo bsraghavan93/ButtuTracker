@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { SleepLog, FeedLog, SolidLog, DiaperLog, GrowthLog } from "@/lib/types";
+import type { SleepLog, FeedLog, SolidLog, DiaperLog, GrowthLog, PottyLog, MedicineLog } from "@/lib/types";
 
 export function useLogs(babyId: string | undefined, sinceDays = 14) {
   const [sleepLogs, setSleepLogs] = useState<SleepLog[]>([]);
@@ -10,6 +10,8 @@ export function useLogs(babyId: string | undefined, sinceDays = 14) {
   const [solidLogs, setSolidLogs] = useState<SolidLog[]>([]);
   const [diaperLogs, setDiaperLogs] = useState<DiaperLog[]>([]);
   const [growthLogs, setGrowthLogs] = useState<GrowthLog[]>([]);
+  const [pottyLogs, setPottyLogs] = useState<PottyLog[]>([]);
+  const [medicineLogs, setMedicineLogs] = useState<MedicineLog[]>([]);
   const [loading, setLoading] = useState(true);
 
   const refresh = useCallback(async () => {
@@ -23,12 +25,14 @@ export function useLogs(babyId: string | undefined, sinceDays = 14) {
     since.setDate(since.getDate() - sinceDays);
     const sinceIso = since.toISOString();
 
-    const [sleep, feed, solid, diaper, growth] = await Promise.all([
+    const [sleep, feed, solid, diaper, growth, potty, medicine] = await Promise.all([
       supabase.from("sleep_logs").select("*").eq("baby_id", babyId).gte("start_time", sinceIso).order("start_time", { ascending: false }),
       supabase.from("feed_logs").select("*").eq("baby_id", babyId).gte("occurred_at", sinceIso).order("occurred_at", { ascending: false }),
       supabase.from("solid_logs").select("*").eq("baby_id", babyId).order("date_introduced", { ascending: false }),
       supabase.from("diaper_logs").select("*").eq("baby_id", babyId).gte("occurred_at", sinceIso).order("occurred_at", { ascending: false }),
       supabase.from("growth_logs").select("*").eq("baby_id", babyId).order("measured_at", { ascending: false }),
+      supabase.from("potty_logs").select("*").eq("baby_id", babyId).gte("occurred_at", sinceIso).order("occurred_at", { ascending: false }),
+      supabase.from("medicine_logs").select("*").eq("baby_id", babyId).gte("occurred_at", sinceIso).order("occurred_at", { ascending: false }),
     ]);
 
     setSleepLogs((sleep.data as SleepLog[]) ?? []);
@@ -36,6 +40,8 @@ export function useLogs(babyId: string | undefined, sinceDays = 14) {
     setSolidLogs((solid.data as SolidLog[]) ?? []);
     setDiaperLogs((diaper.data as DiaperLog[]) ?? []);
     setGrowthLogs((growth.data as GrowthLog[]) ?? []);
+    setPottyLogs((potty.data as PottyLog[]) ?? []);
+    setMedicineLogs((medicine.data as MedicineLog[]) ?? []);
     setLoading(false);
   }, [babyId, sinceDays]);
 
@@ -44,5 +50,5 @@ export function useLogs(babyId: string | undefined, sinceDays = 14) {
     refresh();
   }, [refresh]);
 
-  return { sleepLogs, feedLogs, solidLogs, diaperLogs, growthLogs, loading, refresh };
+  return { sleepLogs, feedLogs, solidLogs, diaperLogs, growthLogs, pottyLogs, medicineLogs, loading, refresh };
 }

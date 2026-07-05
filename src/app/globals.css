@@ -9,6 +9,7 @@
   --bt-teal: #2dd4bf;
   --bt-amber: #fbbf24;
   --bt-red: #fb7185;
+  --bt-green: #4ade80;
   --glass-bg: rgba(255, 255, 255, 0.08);
   --glass-border: rgba(255, 255, 255, 0.18);
 }
@@ -22,6 +23,7 @@
   --color-bt-teal: var(--bt-teal);
   --color-bt-amber: var(--bt-amber);
   --color-bt-red: var(--bt-red);
+  --color-bt-green: var(--bt-green);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }

@@ -7,7 +7,7 @@ create extension if not exists "pgcrypto";
 create table if not exists babies (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users(id) on delete cascade,
-  name text not null default 'Buttu',
+  name text not null default 'Aryan',
   dob date not null default '2026-01-10',
   family_culture text default 'Tamil',
   food_restrictions text[] default array['beef','pork'],
@@ -79,36 +79,64 @@ create table if not exists growth_logs (
   created_at timestamptz not null default now()
 );
 
+-- ============ potty_logs ============
+create table if not exists potty_logs (
+  id uuid primary key default gen_random_uuid(),
+  baby_id uuid not null references babies(id) on delete cascade,
+  type text not null check (type in ('pee', 'poop', 'both')),
+  notes text,
+  occurred_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
+-- ============ medicine_logs ============
+create table if not exists medicine_logs (
+  id uuid primary key default gen_random_uuid(),
+  baby_id uuid not null references babies(id) on delete cascade,
+  medicine_name text not null,
+  dose_amount numeric,
+  dose_unit text,
+  notes text,
+  occurred_at timestamptz not null default now(),
+  created_at timestamptz not null default now()
+);
+
 -- ============ Row Level Security ============
+-- There is a single shared baby for the whole family, so every signed-in
+-- user (not just the row's original creator) can read and write all data.
+-- `babies.user_id` is kept only to record who first created the row.
 alter table babies enable row level security;
 alter table sleep_logs enable row level security;
 alter table feed_logs enable row level security;
 alter table solid_logs enable row level security;
 alter table diaper_logs enable row level security;
 alter table growth_logs enable row level security;
+alter table potty_logs enable row level security;
+alter table medicine_logs enable row level security;
 
-create policy "babies_owner" on babies
-  for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "babies_shared" on babies
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "sleep_logs_owner" on sleep_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "sleep_logs_shared" on sleep_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "feed_logs_owner" on feed_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "feed_logs_shared" on feed_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "solid_logs_owner" on solid_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "solid_logs_shared" on solid_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "diaper_logs_owner" on diaper_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "diaper_logs_shared" on diaper_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
-create policy "growth_logs_owner" on growth_logs
-  for all using (baby_id in (select id from babies where user_id = auth.uid()))
-  with check (baby_id in (select id from babies where user_id = auth.uid()));
+create policy "growth_logs_shared" on growth_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "potty_logs_shared" on potty_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
+
+create policy "medicine_logs_shared" on medicine_logs
+  for all using (auth.uid() is not null) with check (auth.uid() is not null);
 
 -- ============ Helpful indexes ============
 create index if not exists idx_sleep_logs_baby_time on sleep_logs (baby_id, start_time desc);
@@ -116,3 +144,5 @@ create index if not exists idx_feed_logs_baby_time on feed_logs (baby_id, occurr
 create index if not exists idx_solid_logs_baby_date on solid_logs (baby_id, date_introduced desc);
 create index if not exists idx_diaper_logs_baby_time on diaper_logs (baby_id, occurred_at desc);
 create index if not exists idx_growth_logs_baby_date on growth_logs (baby_id, measured_at desc);
+create index if not exists idx_potty_logs_baby_time on potty_logs (baby_id, occurred_at desc);
+create index if not exists idx_medicine_logs_baby_time on medicine_logs (baby_id, occurred_at desc);
