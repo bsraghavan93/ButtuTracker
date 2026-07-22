@@ -1,0 +1,8 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/meal-prep",
+      "schedule": "0 23 * * *"
+    }
+  ]
+}

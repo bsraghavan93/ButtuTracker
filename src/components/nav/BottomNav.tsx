@@ -3,13 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
-import { Home, Moon, Milk, Salad, Baby, TrendingUp, Plus } from "lucide-react";
+import { Home, Moon, Milk, Salad, Baby, TrendingUp, ChefHat, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Home", icon: Home },
   { href: "/sleep", label: "Sleep", icon: Moon },
   { href: "/feeding", label: "Feed", icon: Milk },
+  { href: "/food-timetable", label: "Food", icon: ChefHat },
   { href: "/solids", label: "Solids", icon: Salad },
   { href: "/diapers", label: "Diapers", icon: Baby },
   { href: "/growth", label: "Growth", icon: TrendingUp },
@@ -22,7 +23,7 @@ export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
     <nav className="fixed bottom-0 left-0 right-0 z-40 pb-[env(safe-area-inset-bottom)]">
       <div className="mx-auto max-w-xl px-3 pb-3">
         <div className="glass-strong relative flex items-center justify-between rounded-3xl px-2 py-2">
-          {NAV_ITEMS.slice(0, 3).map((item) => (
+          {NAV_ITEMS.slice(0, 4).map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
 
@@ -35,7 +36,7 @@ export function BottomNav({ onQuickAdd }: { onQuickAdd: () => void }) {
             <Plus size={26} />
           </motion.button>
 
-          {NAV_ITEMS.slice(3).map((item) => (
+          {NAV_ITEMS.slice(4).map((item) => (
             <NavLink key={item.href} item={item} active={pathname === item.href} />
           ))}
         </div>

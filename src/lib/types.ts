@@ -99,3 +99,39 @@ export type MedicineLog = {
   occurred_at: string;
   created_at: string;
 };
+
+export type FoodCategory = "grain" | "legume" | "vegetable" | "fruit" | "protein" | "dairy" | "other";
+
+export type FoodCatalogItem = {
+  id: string;
+  name: string;
+  category: FoodCategory;
+  created_at: string;
+};
+
+export type MealSlot = "breakfast" | "morning_snack" | "lunch" | "afternoon_snack" | "dinner";
+export type RepeatType = "none" | "daily" | "every_other_day" | "weekly";
+
+export type MealPlanItem = {
+  id: string;
+  baby_id: string;
+  food_name: string;
+  category: FoodCategory;
+  meal_slot: MealSlot;
+  start_date: string; // ISO date
+  end_date: string | null; // ISO date
+  repeat_type: RepeatType;
+  repeat_days: number[]; // 0 (Sun) - 6 (Sat), used when repeat_type === "weekly"
+  prep_previous_day: boolean;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type PushSubscriptionRow = {
+  id: string;
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+  created_at: string;
+};

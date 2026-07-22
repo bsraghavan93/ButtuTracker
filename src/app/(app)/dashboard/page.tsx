@@ -1,12 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-import { format, subDays, differenceInMinutes } from "date-fns";
-import { Moon, Milk, Salad, Baby as BabyIcon, AlarmClock, Sparkles, FileDown, FileSpreadsheet, Droplet, Toilet, Syringe, Pill, TrendingUp } from "lucide-react";
+import { format, subDays, addDays, differenceInMinutes } from "date-fns";
+import { Moon, Milk, Salad, Baby as BabyIcon, AlarmClock, Sparkles, FileDown, FileSpreadsheet, Droplet, Toilet, Syringe, Pill, TrendingUp, ChefHat, UtensilsCrossed } from "lucide-react";
 import { useBaby } from "@/lib/baby-context";
 import { useLogs } from "@/lib/hooks/useLogs";
 import { useLatestLogs } from "@/lib/hooks/useLatestLogs";
 import { useElapsedClock } from "@/lib/hooks/useElapsedClock";
+import { useMealPlan } from "@/lib/hooks/useMealPlan";
 import { StatCard } from "@/components/ui/StatCard";
 import { GlassCard } from "@/components/ui/GlassCard";
 import { Button } from "@/components/ui/Button";
@@ -14,6 +15,7 @@ import { GuidanceList } from "@/components/ui/GuidanceList";
 import { ActivityCard } from "@/components/ui/ActivityCard";
 import { AreaTrendChart, BarTrendChart, type TrendPoint } from "@/components/charts/TrendChart";
 import { computeAllGuidance, dailyHeadline } from "@/lib/guidance/engine";
+import { itemsForDate } from "@/lib/mealPlan";
 import { formatMinutes, agoLabel, lbToLbOz } from "@/lib/utils";
 import { exportSummaryToExcel, exportSummaryToPdf } from "@/lib/export";
 
@@ -26,6 +28,12 @@ export default function DashboardPage() {
   const { baby, loading: babyLoading } = useBaby();
   const { sleepLogs, feedLogs, solidLogs, diaperLogs, growthLogs, loading } = useLogs(baby?.id, 14);
   const latest = useLatestLogs(baby?.id);
+  const { mealPlanItems } = useMealPlan(baby?.id);
+
+  const prepTonightItems = useMemo(
+    () => itemsForDate(mealPlanItems, addDays(new Date(), 1)).filter((i) => i.prep_previous_day),
+    [mealPlanItems]
+  );
 
   const sleeping = !!latest.sleep && !latest.sleep.end_time;
   const wakeClockSince = sleeping ? latest.sleep?.start_time : latest.sleep?.end_time;
@@ -99,6 +107,16 @@ export default function DashboardPage() {
         </div>
       </GlassCard>
 
+      {prepTonightItems.length > 0 && (
+        <GlassCard strong className="flex items-start gap-3 p-4">
+          <UtensilsCrossed size={20} className="mt-0.5 shrink-0 text-bt-amber" />
+          <div>
+            <p className="text-xs uppercase tracking-wide text-foreground/50">Prep tonight for tomorrow</p>
+            <p className="text-sm">{prepTonightItems.map((i) => i.food_name).join(", ")}</p>
+          </div>
+        </GlassCard>
+      )}
+
       <div className="flex flex-col gap-3">
         <ActivityCard
           icon={Moon}
@@ -142,6 +160,18 @@ export default function DashboardPage() {
           subtitle={latest.solid ? `${agoLabel(latest.solid.date_introduced)} • ${latest.solid.food_name}` : "No entries yet"}
           accent="bt-pink"
           href="/solids"
+        />
+
+        <ActivityCard
+          icon={ChefHat}
+          title="Food Timetable"
+          subtitle={
+            prepTonightItems.length > 0
+              ? `Prep tonight: ${prepTonightItems.map((i) => i.food_name).join(", ")}`
+              : "Plan today's and this week's meals"
+          }
+          accent="bt-amber"
+          href="/food-timetable"
         />
 
         <div className="grid grid-cols-2 gap-3">
